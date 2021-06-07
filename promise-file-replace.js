@@ -9,82 +9,75 @@
 /* jshint undef: true, unused: true */
 /* jslint node: true */
 
-var Q = require( 'q' );
-var resolve = require( 'promise-resolve-path' );
+var resolve_path = require( 'promise-resolve-path' );
 var read = require( 'promise-file-read' );
 var write = require( 'promise-file-write' );
 
 var replace = module.exports = function( aSrc, aTerms ){ // jshint ignore:line
-    var deferred = Q.defer();
-    var cSrcType = typeof aSrc;
-    var cTermsType = typeof aTerms;
-    var aSources;
+    new Promise(function( resolve, reject ){
+        var cSrcType = typeof aSrc;
+        var cTermsType = typeof aTerms;
+        var aSources;
 
-    switch( true ) {
-    case ( cSrcType === 'string' ):
-        aSrc = [aSrc];
-        break;
+        switch( true ) {
+        case ( cSrcType === 'string' ):
+            aSrc = [aSrc];
+            break;
 
-    case Array.isArray( aSrc ):
-        break;
+        case Array.isArray( aSrc ):
+            break;
 
-    default:
-        deferred.reject( 'Invalid source path argument: '.concat( aSrc ) );
-        return deferred.promise;
-
-    }// /switch()
+        default:
+            return reject( 'Invalid source path argument: '.concat( aSrc ) );
+        }// /switch()
 
 
-    switch( true ) {
-    case Array.isArray( aTerms ):
-        break;
+        switch( true ) {
+        case Array.isArray( aTerms ):
+            break;
 
-    case ( cTermsType === 'object' ):
-        aTerms = [aTerms];
-        break;
+        case ( cTermsType === 'object' ):
+            aTerms = [aTerms];
+            break;
 
-    default:
-        deferred.reject( 'Invalid replacement terms argument: '.concat( aTerms ) );
-        return deferred.promise;
+        default:
+            return reject( 'Invalid replacement terms argument: '.concat( aTerms ) );
+        }// /switch()
 
-    }// /switch()
+        // Resolve source paths and verify their existance.
+        resolve_path( aSrc, true )
+        .then(function( aResults ){
 
-    // Resolve source paths and verify their existance.
-    resolve( aSrc, true )
-    .then(function( aResults ){
+            // Determines the global sources.
+            aSources = aResults;
+            
+            var i, l = aSources.length, aPromises = [];
 
-        // Determines the global sources.
-        aSources = aResults;
+            // Loop over each source.
+            for( i = 0, l; i < l; i++ ) {
+                aPromises.push( replaceOneFile( aSources[ i ], aTerms ) );
+            }// /for()
+            
+            // Either wait for all paths to be copied or reject one.
+            return Promise.all( aPromises );
         
-        var i, l = aSources.length, aPromises = [];
+        })
+        .then(function( aReplaced ){
+            if( cSrcType === 'string' )  {
+                resolve( aReplaced[0] );
+            }
+            else {
+                resolve( aReplaced );
+            }
+        })
+        .catch(function( err ){
+            reject( err );
+        });
 
-        // Loop over each source.
-        for( i = 0, l; i < l; i++ ) {
-            aPromises.push( replaceOneFile( aSources[ i ], aTerms ) );
-        }// /for()
-        
-        // Either wait for all paths to be copied or reject one.
-       return Q.all( aPromises );
-       
-    })
-    .then(function( aReplaced ){
-        if( cSrcType === 'string' )  {
-            deferred.resolve( aReplaced[0] );
-        }
-        else {
-            deferred.resolve( aReplaced );
-        }
-    })
-    .fail(function( err ){
-       deferred.reject( err );
-    }).done();
-
-    return deferred.promise;
+    });
 };// /copy()
 
 var replaceOneFile = function( cPathSrc, aTerms ) {
-    //var deferred = Q.defer();
-
     return read( cPathSrc )
     .then( function( cContent ) {
         var i, l = aTerms.length;
@@ -96,6 +89,4 @@ var replaceOneFile = function( cPathSrc, aTerms ) {
 
        return write( cPathSrc, cContent );
     });
-
-    //return deferred.promise;
-};// /copyOneFile()
+};// /replaceOneFile()
