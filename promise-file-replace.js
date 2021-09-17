@@ -14,7 +14,7 @@ var read = require( 'promise-file-read' );
 var write = require( 'promise-file-write' );
 
 var replace = module.exports = function( aSrc, aTerms ){ // jshint ignore:line
-    new Promise(function( resolve, reject ){
+    return new Promise(function( resolve, reject ){
         var cSrcType = typeof aSrc;
         var cTermsType = typeof aTerms;
         var aSources;
